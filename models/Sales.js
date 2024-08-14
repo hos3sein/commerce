@@ -277,7 +277,12 @@ const SalesSchema = new mongoose.Schema(
     },
     sellerrDepositeInvoiceNumber:{
       type:String,
-    }
+    },
+    canceler : {
+      admin : {type : String},
+      number : {type : String},
+      cause : {type : String}
+    },
 
   },
   { timestamps: true }

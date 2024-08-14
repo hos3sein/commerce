@@ -37,7 +37,10 @@ router.get("/sellme", protect, C.sellMe);
 router.get("/approve/:id", protect, C.approveBuyer);
 
 router.get("/cancelorderme/:id", protect, C.cancelSalesMe);
+
 router.get("/cancelorder/:id", protect, C.cancelOredr);
+
+router.post("/cancelorderadmin/:id" , protect , C.cancelOredradmin);
 
 router.get("/getfavoriteordercommerce",protect,C.getFavoriteOrder)
 router.get("/getfavoriteordercommerceadmin/:id",protect,C.getFavoriteOrderAdmin)

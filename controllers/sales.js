@@ -101,6 +101,7 @@ exports.createSales = asyncHandler(async (req, res, next) => {
   });
 });
 
+
 // Ok
 exports.allSalesMe = asyncHandler(async (req, res, next) => {
   
@@ -480,6 +481,8 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
   const last = find.statusTime[find.statusTime.length - 1];
     console.log('the order status >>>>>>' , find.status + 1 )
   const newStatus = find.status + 1;
+  console.log('status>>>>>>>>>>' ,find.status )
+  console.log('Newstatus>>>>>>>>>>' ,newStatus )
   if(newStatus>10){
     return next(new ErrorResponse("order end you cant change Status",400))
   }
@@ -520,20 +523,21 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
     };
     // //!wallet section 
     const amount=(find.raisedPrice)*100
-
+    console.log('l2>>>>>>>>>>>' , amount)
     if(find.haveTransport){
+       console.log('l3>>>>>>>>>>>' , find.haveTransport) 
       const transportAmount=(find.transportPrice*100)
-      const transportTransAction=await walletUpdater(0,req.user._id,transportAmount,"Deposite shipingCompany","transport")
-      const transportTransActionApp=await walletUpdaterApp(1,req.user._id,transportAmount,"Deposite shipingCompany","transport")
+      const transportTransAction=await walletUpdater(0 , find.userTo._id , transportAmount,"Deposite shipingCompany","transport")
+      const transportTransActionApp=await walletUpdaterApp(1 , find.userTo._id , transportAmount , "Deposite shipingCompany" , "transport")
       if(!transportTransAction.success||transportTransActionApp.success){
         return next(new ErrorResponse("Wallet transaction failed",500))
       }
     }
-    const bidTransAction=await walletUpdater(0,req.user._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
+    const bidTransAction=await walletUpdater(0,find.userTo._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
     if(!bidTransAction.success){
       return next(new ErrorResponse("Wallet transaction failed",500))
     }
-    const bidTransActionA=await walletUpdaterApp(1,req.user._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
+    const bidTransActionA=await walletUpdaterApp(1,find.userTo._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
     if(!bidTransActionA.success){
       return next(new ErrorResponse("if your wallet amount change call ashAdmin",500))
     }
@@ -557,11 +561,11 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
 
     const depo=(find.raisedPrice)*(deposteAmount/100)
     const amount=depo*100
-    const bidTransAction=await walletUpdater(0,req.user._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
+    const bidTransAction=await walletUpdater(0,find.userTo._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
     if(!bidTransAction.success){
       return next(new ErrorResponse("Wallet transaction failed",500))
     }
-    const bidTransActionA=await walletUpdaterApp(1,req.user._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
+    const bidTransActionA=await walletUpdaterApp(1,find.userTo._id,amount,`Deposite for commerce order ${find.productName}`,"commerce")
     if(!bidTransActionA.success){
       return next(new ErrorResponse("if your wallet amount change call ashAdmin",500))
     }
@@ -634,13 +638,14 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
     if(!bidTransActionA.success||!backDepositeApp.success||!getComiApp.success){
       return next(new ErrorResponse("if your wallet amount change call ashAdmin",500))
     }
+    await pushNotificationStatic(sender._id , number)
     await Sales.findByIdAndUpdate(find._id, {
       end:true,
       status:10,
       $addToSet: { statusTime: time }
     });
   }
-  await pushNotificationStatic(recipient._id,number) 
+  await pushNotificationStatic(recipient._id , number) 
   const findSocket = await Sales.findById(req.params.id);
   await refreshOneOrder(findSocket)
   res.status(200).json({
@@ -650,6 +655,8 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
     },
   });
 });
+
+
 
 // ok
 // ! in fek konm estefade beshe va notif dorost bekhad
@@ -1374,6 +1381,93 @@ exports.msg = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+
+exports.cancelOredradmin = asyncHandler(async (req, res, next) => {
+  let recipient
+  let sender
+  
+  const find = await Sales.findById(req.params.id);
+  const allV=await getAllVarible()
+  const bidamount=allV.commerceBidAmount*100
+  
+  if (find.status != 0){
+    const cancelTransAction=await walletUpdater(1 , find.userTo._id,bidamount , "Cancel bid cost","Commerce")
+    const cancelTransActionApp=await walletUpdaterApp(0 , find.userTo._id,bidamount , "Cancel bid cost","Commerce")
+    if(!cancelTransAction.success){
+      return next(new ErrorResponse("Wallet transaction failed",500))
+    }
+    if(!cancelTransActionApp.success){
+      return next(new ErrorResponse("Wallet transaction failed",500))
+    }
+  }
+  
+  const admin = {
+    admin : req.user.username,
+    number : req.user.phonenumber,
+    cause : req.body.cause
+  }
+   await Sales.findByIdAndUpdate(req.params.id,{
+    cancel: true,
+    canceler : admin
+   })
+  
+   if(find.type==0){
+    sender = {
+      _id: find.user._id,
+      username: find.user.companyName,
+      pictureProfile: find.user.profileCompany,
+    };
+    recipient = {
+      _id: find.userTo._id,
+      username: find.userTo.companyName,
+      pictureProfile: find.userTo.profileCompany,
+    };
+  } 
+  if(find.type==1){
+    recipient = {
+      _id: find.user._id,
+      username: find.user.companyName,
+      pictureProfile: find.user.profileCompany,
+    };
+    sender = {
+      _id: find.userTo._id,
+      username: find.userTo.companyName,
+      pictureProfile: find.userTo.profileCompany,
+    };
+  } 
+    
+    await pushNotificationStatic(find.user._id , 21)
+    
+    await cancelInquery((find.type==0)?find.user._id:find.userTo._id,find._id)
+    
+    await refreshGC();
+    
+    
+    
+    res.status(200).json({
+      success: true,
+      data: {},
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 exports.newMsgImage=asyncHandler(async (req, res, next) => {
   const { image } = req.body;
   let sender
@@ -1585,6 +1679,7 @@ exports.cancelSalesMe = asyncHandler(async (req, res, next) => {
     data: {},
   });
 });
+
 exports.cancelOredr = asyncHandler(async (req, res, next) => {
 let recipient
 let sender
@@ -1592,15 +1687,19 @@ let sender
 const find = await Sales.findById(req.params.id);
 const allV=await getAllVarible()
 const bidamount=allV.commerceBidAmount*100
-const cancelTransAction=await walletUpdater(1,find.userTo._id,bidamount,"Cancel bid cost","Commerce")
-const cancelTransActionApp=await walletUpdaterApp(0,find.userTo._id,bidamount,"Cancel bid cost","Commerce")
-if(!cancelTransAction.success){
-  return next(new ErrorResponse("Wallet transaction failed",500))
-}
-if(!cancelTransActionApp.success){
-  return next(new ErrorResponse("Wallet transaction failed",500))
+if (find.status != 0){
+    console.log('its here for now')
+    const cancelTransAction=await walletUpdater(1,find.userTo._id,bidamount,"Cancel bid cost","Commerce")
+    const cancelTransActionApp=await walletUpdaterApp(0,find.userTo._id,bidamount,"Cancel bid cost","Commerce")
+    if(!cancelTransAction.success){
+      return next(new ErrorResponse("Wallet transaction failed",500))
+    }
+    if(!cancelTransActionApp.success){
+      return next(new ErrorResponse("Wallet transaction failed",500))
+    }
 }
 
+console.log('its here for status lowe than 0')
  await Sales.findByIdAndUpdate(req.params.id,{
   cancel: true
  })
