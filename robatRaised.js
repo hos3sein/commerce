@@ -130,9 +130,9 @@ exports.robatRaised = async (interval) => {
 
 exports.checkStatus = async()=>{
   setInterval(async() => {
-      console.log('start the check status')
-    const orders = await Sales.find( {status : 8 })
-    orders.forEach(elem=>{
+    console.log('start the check status')
+    const orders = await Sales.find( {status : 8})
+    orders.forEach(async elem=>{
     console.log(`${elem.productName} is waiting for buyer confirmaition for reciveing the cargo...`)
     const time = parseInt(elem.statusTime[elem.statusTime.length-1].at)
     const currentTime = new Date()
@@ -144,6 +144,9 @@ exports.checkStatus = async()=>{
       const releaser = releaseMoney(elem);
       console.log(releaser)
       console.log(`release money for order : ${elem._id}`)
+    }else{
+        const id = elem.userTo._id
+        await pushNotificationStatic(id , 20)
     }
   })
   }, 24*60*60*1000);
@@ -195,6 +198,7 @@ recipient = {
 
 
 await pushNotificationStatic(recipient._id , 12) 
+await pushNotificationStatic(order.userTo._id , 12) 
 const findSocket = await Sales.findById(order._id);
 await refreshOneOrder(findSocket)
 
