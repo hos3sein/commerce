@@ -22,14 +22,14 @@ const {
   transportInspection,
   cancelInquery,
   cancelInqueryOtherTransport,
-  getAllVarible
+  getAllVarible,newLog
 } = require("../utils/request");
 const { refresh, refreshGT,refreshGC,refreshOneOrder } = require("../utils/refresh");
 const moment = require("moment");
 const { without } = require("lodash");
 //? Create Sales
 exports.createSales = asyncHandler(async (req, res, next) => {
-  
+  console.log('enter')
   let recipient
   let sender
   const {
@@ -209,6 +209,7 @@ exports.allSalesWithToken = asyncHandler(async (req, res, next) => {
   });
 });
 
+
 // Ok
 exports.allSales = asyncHandler(async (req, res, next) => {
   // const all = await Sales.find({
@@ -302,8 +303,10 @@ exports.allSales = asyncHandler(async (req, res, next) => {
 
   
 
- 
-  const newResult=await Sales.find({
+  const user = req.user.group
+  console.log('group>>>' , user)
+  if (user.includes('commerce')){
+      const newResult=await Sales.find({
     $and:[
       {status:{$lt:4}},
       {cancel:false},
@@ -317,6 +320,14 @@ exports.allSales = asyncHandler(async (req, res, next) => {
     success: true,
     data:newResult,
   });
+  }
+  else{
+  res.status(200).json({
+    success: true,
+    data:[],
+  }); 
+ }
+  
 });
 
 // update
@@ -464,7 +475,8 @@ exports.changeStatus = asyncHandler(async (req, res, next) => {
 
 // change status end contract
 exports.changeStatusSales = asyncHandler(async (req, res, next) => {
-    
+  const admin = (req.user.group.includes("admin"))?true:false
+  const superAdmin = (req.user.group.includes("superAdmin"))?true:false
   const allV=await getAllVarible()
   const deposteAmount=allV.commerceDepositeAmount
   const comi=allV.appComistionAmountCommerce
@@ -543,6 +555,16 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
     }
     find.buyerDepositeInvoiceNumber=bidTransAction.data
     await find.save()
+    if(admin || superAdmin){
+      const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole , group : req.user?.group ,firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Order commerce",
+        part : "ChangeStatus",
+        success : true,
+        description : `${req.user.username} successfully change Order's ${order.productName}'s status to "deposit from buyer"`,
+      }
+      await newLog(Log)
+     }
   }
   if (find.type == 0 && newStatus == 6) {
     title = "Are you ready to recive?";
@@ -572,6 +594,16 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
   
     find.sellerrDepositeInvoiceNumber=bidTransAction.data
     await find.save()
+    if(admin || superAdmin){
+      const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Order commerce",
+        part : "ChangeStatus",
+        success : true,
+        description : `${req.user.username} successfully change Order's ${find.productName}'s status from "the buyer confirmation for recive the cargo"`,
+      }
+      await newLog(Log)
+     }
   }
   if (find.type == 0 && newStatus == 7) {
     number=10
@@ -587,6 +619,16 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
       username: find.userTo.companyName,
       pictureProfile: find.userTo.profileCompany,
     };
+    if(admin || superAdmin){
+      const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Order commerce",
+        part : "ChangeStatus",
+        success : true,
+        description : `${req.user.username} successfully change Order's ${find.productName}'s status to "the seller sent the cargo to destination"`,
+      }
+      await newLog(Log)
+     }
   }
   if (find.type == 0 && newStatus == 8) {
     number=11
@@ -602,6 +644,16 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
       username: find.user.companyName,
       pictureProfile: find.user.profileCompany,
     };
+    if(admin || superAdmin){
+      const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Order commerce",
+        part : "ChangeStatus",
+        success : true,
+        description : `${req.user.username} successfully change Order's ${find.productName}'s status to "delivered the cargo to buyer"`,
+      }
+      await newLog(Log)
+     }
   }
   if (find.type == 0 && newStatus == 9) {
     number=12
@@ -644,6 +696,16 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
       status:10,
       $addToSet: { statusTime: time }
     });
+    if(admin || superAdmin){
+      const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Order commerce",
+        part : "ChangeStatus",
+        success : true,
+        description : `${req.user.username} successfully change Order's ${find.productName}'s status to "buyer confirmation for recieving the cargo"`,
+      }
+      await newLog(Log)
+     }
   }
   await pushNotificationStatic(recipient._id , number) 
   const findSocket = await Sales.findById(req.params.id);
@@ -655,7 +717,6 @@ exports.changeStatusSales = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
 
 
 // ok
@@ -1443,6 +1504,14 @@ exports.cancelOredradmin = asyncHandler(async (req, res, next) => {
     
     await refreshGC();
     
+    const Log = {
+      admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+      section : "Order commerce",
+      part : "canceled",
+      success : true,
+      description : `${req.user.username} successfully Caneled Order ${find.productName}`,
+    }
+    await newLog(Log)
     
     
     res.status(200).json({
@@ -1450,16 +1519,6 @@ exports.cancelOredradmin = asyncHandler(async (req, res, next) => {
       data: {},
     });
 });
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -2066,7 +2125,14 @@ exports.inspectorPending=asyncHandler(async (req, res, next) => {
   await pushNotificationStatic(approve.user._id,15)
   await pushNotificationStatic(approve.userTo._id,15)
   await refreshGC();
-
+   const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Approve",
+        part : "approve inpector",
+        success : true,
+        description : `${req.user.username} successfully approved order :  ${approve.productName}'s inspector`,
+      }
+      await newLog(Log)
   res.status(200).json({
     success:true,
     data:{approve}
@@ -2094,7 +2160,14 @@ exports.inspectorPending=asyncHandler(async (req, res, next) => {
   await refreshGC();
   await pushNotificationStatic(reject.user._id,14)
   await pushNotificationStatic(reject.userTo._id,14)
-
+   const Log = {
+        admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+        section : "Approve",
+        part : "reject inpector",
+        success : true,
+        description : `${req.user.username} successfully rejected order :  ${reject.productName}'s inspector`,
+      }
+      await newLog(Log)
   res.status(200).json({
     success:true,
     data:{reject}
