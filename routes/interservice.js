@@ -30,6 +30,24 @@ router.get("/removeuserfavorite/:userId/:orderId",C.removeUserToFavorite)
 
 //
 
+
+router.get('/getAllOrders' , C.getOrders)
+
+router.get('/getAllForEndChecker' , C.getForEndChecker)
+
+router.put('/setRaise' , C.setRaise)
+
+router.put('/cancelOrder/:id' , C.endOrder)
+
+router.put('/release' , C.releaseMoney)
+router.put('/setBid' , C.releaseMoney)
+
+
+
+
+router.get('/getOrdersforcheckStatus' , C.getOrderForCheckStatus)
+
+
 router.get("/raisprice/:id/:type",C.raisPrice)
 router.get("/endhandeler/:id",C.endTimeHandeler)
 

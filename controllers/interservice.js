@@ -7,6 +7,7 @@ const BussinessMan = require("../models/BussinessMan");
 const Group = require("../models/Group");
 const Buy = require("../models/Buy");
 const Sales = require("../models/Sales");
+const {walletUpdater,walletUpdaterApp}=require("../utils/wallet")
 
 const {
   changeStatus,
@@ -17,6 +18,7 @@ const {
   cancelInqueryOtherTransport
 } = require("../utils/request");
 const { refresh, refreshGT,refreshGC,refreshOneOrder } = require("../utils/refresh");
+const { pushNotificationStatic } = require("../utils/pushNotif");
 
 //In connection with approve service
 exports.createBussinessMan = asyncHandler(async (req, res, next) => {
@@ -101,6 +103,172 @@ exports.removeUserToFavorite = asyncHandler(async (req, res, next) => {
    success:true
   })
 });
+
+
+
+
+exports.getOrders = asyncHandler(async(req , res , next)=>{
+  const allSales = await Sales.find({
+    $and: [
+      { autoPrice: true },
+      {cancel:false},
+      {end:false},
+      // { "buyers.length": 0 },
+      { $or: [{ status: 0 }, { status: 2 }, { status: 3 }] },
+    ],
+  });
+  return res.status(200).json({
+    success : true , 
+    data : allSales
+  })
+})
+
+
+exports.getForEndChecker = asyncHandler(async(req , res , next)=>{
+  const allSales = await Sales.find();
+  return res.status(200).json({
+    success : true , 
+    data : allSales
+  })
+})
+
+exports.getOrderForCheckStatus = asyncHandler(async(req , res , next)=>{
+  const allSales = await Sales.find( {status : 8})
+  return res.status(200).json({
+    success : true , 
+    data : allSales
+  })
+})
+
+
+exports.setRaise = asyncHandler(async(req , res , next)=>{
+  // const order = await Sales.findById(req.body.id)
+  if (req.body.type == 1){
+    await Sales.findByIdAndUpdate(
+        req.body.id,
+        {
+          raisedPrice:price,
+          lastPrice:lastPrice , 
+          status: 2,
+        },
+        { strict: false }
+      );
+      refreshGC();
+  }else{
+    await Sales.findByIdAndUpdate(
+      req.body.id,
+      {
+        raisedPrice:price,
+        lastPrice:lastPrice , 
+        status: 3,
+      },
+      { strict: false }
+    );
+    refreshGC();
+  }
+  return res.status(200).json({
+    success : true,
+  })
+})
+
+
+
+
+exports.endOrder = asyncHandler(async(req , res , next)=>{
+  await Sales.findByIdAndUpdate(
+    req.params.id,
+    {
+      end: true,
+    },
+    { strict: false }
+  );
+  await deleteInquery(req.params.id)
+  await refreshGC();
+   console.log("the order overed and ended!!" , element.productName);
+})
+
+
+
+
+exports.releaseMoney = asyncHandler(async(req , res , next)=>{
+  const order = req.body
+  const allV=await getAllVarible()                      // get all settings
+  const deposteAmount=allV.commerceDepositeAmount
+  const comi=allV.appComistionAmountCommerce
+  const userId = order.user._id
+  const comAmont = order.raisedPrice*(comi/100)*100
+  const depo = order.raisedPrice*(deposteAmount/100)*100
+  const amount = (order.raisedPrice)*100
+    
+  const bidTransAction = await walletUpdater(1 , userId ,amount , `All cargo cost for commerce order ${order.productName}`,"commerce")   // bid transactio back
+  const backDeposite=await walletUpdater(1 , userId , depo,`Get back deposite for commerce order ${order.productName}`,"commerce")      // deposit price back
+  const getComi = await walletUpdater(0 , userId , comAmont , `App comision for commerce order ${order.productName}`,"commerce")         // get the app comision from seller wallet 
+  if(!bidTransAction.success||!backDeposite.success||!getComi.success){
+    return next(new ErrorResponse("Wallet transaction failed",500))
+  }
+  const bidTransActionA=await walletUpdaterApp(0,userId,amount,`All cargo cost for commerce order ${order.productName}`,"commerce")
+  const backDepositeApp=await walletUpdaterApp(0,userId,depo,`Get back deposite for commerce order ${order.productName}`,"commerce")
+  const getComiApp=await walletUpdaterApp(1,userId,comAmont,`App comision for commerce order ${order.productName}`,"commerce")
+  if(!bidTransActionA.success||!backDepositeApp.success||!getComiApp.success){
+    return next(new ErrorResponse("if your wallet amount change call ashAdmin",500))
+  }
+  const last = order.statusTime[order.statusTime.length - 1];
+   
+  const time = {
+    status: 9,
+    action: last.action + 1,
+    at: Date.now(),
+  };
+  
+  
+const ss = await Sales.findByIdAndUpdate(order._id, {
+  end:true,
+  status : 10,
+  $addToSet: { statusTime: time }
+});
+
+// console.log('the order >>>>>>>>>>>>' , ss )
+recipient = {
+  _id: order.user._id,
+  username: order.user.companyName,
+  pictureProfile: order.user.profileCompany,
+};
+
+
+await pushNotificationStatic(recipient._id , 12) 
+await pushNotificationStatic(order.userTo._id , 12) 
+const findSocket = await Sales.findById(order._id);
+await refreshOneOrder(findSocket)
+
+return res.status(200).json({
+  success : true
+})
+})
+
+
+exports.setBid = asyncHandler(async(req , res , next)=>{
+ 
+    await Sales.findOneAndUpdate(
+      {
+        _id: req.body.id,
+        "bids.bussId": req.body.buss._id,
+      },
+      {
+        $set: {
+          "bids.$.status": "accept",
+        },
+        $addToSet: { statusTime: req.body.time },
+        userTo: req.body.obj,
+        status: 4,
+        raisedPrice: req.body.bid,
+      }
+    );
+    refreshGC();
+    return res.status(200).json({
+      success : true,
+    })
+})
+
 
 exports.changeTransortStats=asyncHandler(async (req, res, next) => {
    const {saleId,status} =req.body
