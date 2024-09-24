@@ -510,3 +510,78 @@ exports.newLog=async (body) => {
       console.log("err", err);
     }
   };
+  
+  
+  
+  
+exports.getVariables = async (requester,id) => {
+  const url = `${process.env.SERVICE_SETTING}/api/v1/setting/point/getAllVariables`;
+
+  try {
+    const rawResponse = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "*",
+        "Content-Type": "application/json",
+      },
+    });
+    const response = await rawResponse.json();
+    if (response.success) {
+        console.log('successfullllllllllll' , response)
+        
+      return response;
+    }
+  } catch (err) {
+    console.log("err", err);
+  }
+};
+
+
+exports.putPoint = async (body) => {
+  const url = `${process.env.SERVICE_AUTHENTICATION}/api/v1/auth/interservice/putNewPoints`;
+    console.log('body,,,' , body)
+  try {
+    const rawResponse = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "*",
+        "Content-Type": "application/json",
+      },
+      body :JSON.stringify(body)
+    });
+    const response = await rawResponse.json();
+    console.log( 'put responseeeeeeeeeeee',response)
+    if (response.success) {
+      return response;
+    }
+  } catch (err) {
+    console.log("err", err);
+  }
+};
+
+
+
+  
+
+  
+  
+  
+  
+  exports.getUSER = async(id)=>{
+    const url = `${process.env.SERVICE_AUTHENTICATION}/api/v1/auth/interservice/getuser/${id}`;
+    try {
+      const rawResponse = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "*",
+          "Content-Type": "application/json",
+        },
+        // body:JSON.stringify(body)
+      });
+      const response = await rawResponse.json();
+      console.log(response);
+      return response
+    } catch (err) {
+      console.log("err", err);
+    }
+  }

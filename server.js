@@ -33,10 +33,10 @@ dotenv.config({
 // Connect to database...
 connectDB();
 // checkGroup();         //!bayad refactor beshe
-robatRaised(5000);    //!bayad refactor beshe
-acceptDriver(6000);   //!bayad refactor beshe
-payCkecker(3600000)
-checkStatus()
+// robatRaised(5000);    //!bayad refactor beshe
+// acceptDriver(6000);   //!bayad refactor beshe
+// payCkecker(3600000)
+// checkStatus()
 
 // Route files
 const commerce = require("./routes");
